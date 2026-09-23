@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGC Assurances - OCR → Contrat | J6</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Inter,Arial,sans-serif;background:#f1f5f9;color:#0f172a}
+header{background:linear-gradient(135deg,#0e2a47,#1e40af);color:white;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+header h1{font-size:15px}
+header span{font-size:11px;opacity:0.85}
+.wrap{max-width:1100px;margin:18px auto;padding:0 14px;display:grid;grid-template-columns:380px 1fr;gap:14px}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}}
+.card{background:white;border-radius:14px;padding:14px;box-shadow:0 4px 14px rgba(0,0,0,0.06);border:1px solid #e2e8f0}
+.drop{border:2px dashed #1a5a96;border-radius:10px;padding:18px;text-align:center;background:#f8fafc;cursor:pointer}
+.drop:hover{background:#eef2ff}
+.drop.dragover{border-color:#16a34a;background:#ecfdf5}
+#preview{max-width:100%;max-height:220px;margin-top:10px;border-radius:8px;display:none}
+.field{display:grid;grid-template-columns:130px 1fr;gap:6px;padding:6px 8px;border-bottom:1px solid #f1f5f9;font-size:12px}
+.field b{color:#0e2a47}
+.prices{display:grid;gap:6px;max-height:360px;overflow:auto;padding:4px}
+.price{border:1px solid #e2e8f0;border-radius:8px;padding:8px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:white}
+.price:hover{border-color:#1a5a96}
+.price.sel{border-color:#16a34a;background:#ecfdf5;box-shadow:0 2px 8px rgba(22,163,74,0.15)}
+.price b{font-size:12px;color:#0e2a47}
+.price span{font-size:11px;color:#64748b}
+.price .p{font-weight:800;color:#16a34a;font-size:13px}
+.btn{width:100%;padding:10px;border:none;border-radius:8px;font-weight:800;cursor:pointer;font-size:13px}
+.btn-primary{background:#16a34a;color:white}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed}
+.btn-secondary{background:#e2e8f0;color:#0e2a47}
+.badge{padding:2px 6px;border-radius:999px;font-size:9px;font-weight:800}
+.b-green{background:#dcfce7;color:#166534} .b-blue{background:#dbeafe;color:#1e40af}
+.log{font-family:monospace;background:#0b1220;color:#a7f3d0;padding:8px;border-radius:8px;font-size:11px;max-height:140px;overflow:auto;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>AGC Assurances — OCR → Contrat <span style="font-weight:400">J6 • Upload → OCR → Prix → PDF</span></h1></div>
+  <div style="text-align:right"><div style="font-size:11px;background:rgba(255,255,255,0.15);padding:4px 8px;border-radius:999px;border:1px solid rgba(255,255,255,0.25)">● LIVE</div></div>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <h3 style="font-size:13px;color:#0e2a47">1. Upload Carte Grise</h3>
+    <div class="drop" id="drop" onclick="document.getElementById('file').click()">
+      <div style="font-size:24px">📸</div>
+      <div style="font-size:12px;font-weight:700">Clique ou glisse ta carte grise ici</div>
+      <div style="font-size:10px;color:#94a3b8">JPG/PNG • Max 5MB</div>
+      <div style="font-size:10px;color:#16a34a;margin-top:4px">Supporte aussi CNI</div>
+    </div>
+    <input type="file" id="file" accept="image/*" style="display:none" onchange="handleFile(event)">
+    <img id="preview">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
+      <input id="nom" placeholder="Nom (ex: WANDJI DENIS)" style="padding:8px;border:1px solid #e2e8f0;border-radius:6px;font-size:11px">
+      <input id="ville" placeholder="Ville (Yaoundé)" value="Yaounde" style="padding:8px;border:1px solid #e2e8f0;border-radius:6px;font-size:11px">
+    </div>
+    <button id="btnOcr" class="btn btn-primary" style="margin-top:8px" onclick="doOcr()" disabled>1️⃣ Extraire avec OCR</button>
+    <div class="log" id="log" style="margin-top:8px;display:none"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:13px;color:#0e2a47">2. Champs extraits <span id="score" class="badge b-blue" style="display:none">85%</span></h3>
+    <div id="fields" style="margin-top:8px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+      <div style="padding:20px;text-align:center;color:#94a3b8;font-size:11px">Upload une carte grise à gauche → champs apparaîtront ici</div>
+    </div>
+
+    <h3 style="font-size:13px;color:#0e2a47;margin-top:12px">3. Choisis ta formule</h3>
+    <div id="prices" class="prices">
+      <div style="padding:12px;text-align:center;color:#94a3b8;font-size:11px">Les 9 prix s'afficheront après OCR</div>
+    </div>
+
+    <button id="btnContract" class="btn btn-primary" style="margin-top:10px;background:#0e2a47" onclick="doContract()" disabled>2️⃣ Générer le Contrat PDF</button>
+    <div id="result" style="margin-top:8px;font-size:11px;color:#475569;text-align:center"></div>
+  </div>
+</div>
+
+<div class="card" style="max-width:1100px;margin:0 auto 18px;padding:10px">
+  <div style="font-size:11px;color:#64748b;text-align:center">Backend: <a href="/docs" target="_blank">/docs</a> • POST /ocr • POST /contract • Frontend servi sur /app • GitHub: Ulrich-T237/agc-ocr-contrat</div>
+</div>
+
+<script>
+let lastFile = null;
+let selectedFormule = null;
+
+function handleFile(e){
+  const f = e.target.files[0]; if(!f) return;
+  lastFile = f;
+  const img = document.getElementById('preview');
+  img.src = URL.createObjectURL(f);
+  img.style.display = 'block';
+  document.getElementById('btnOcr').disabled = false;
+  document.getElementById('btnOcr').textContent = '1️⃣ Extraire avec OCR (' + f.name + ')';
+  log('📸 ' + f.name + ' (' + Math.round(f.size/1024) + ' KB) prêt');
+}
+
+const drop = document.getElementById('drop');
+drop.addEventListener('dragover', e=>{e.preventDefault(); drop.classList.add('dragover')});
+drop.addEventListener('dragleave', e=>drop.classList.remove('dragover'));
+drop.addEventListener('drop', e=>{
+  e.preventDefault(); drop.classList.remove('dragover');
+  const f = e.dataTransfer.files[0]; if(!f) return;
+  lastFile = f;
+  document.getElementById('preview').src = URL.createObjectURL(f);
+  document.getElementById('preview').style.display='block';
+  document.getElementById('btnOcr').disabled=false;
+  log('📸 ' + f.name + ' glissé');
+});
+
+function log(t){
+  const l=document.getElementById('log'); l.style.display='block'; l.textContent += t + '\n'; l.scrollTop = l.scrollHeight;
+}
+
+async function doOcr(){
+  if(!lastFile) return;
+  const btn=document.getElementById('btnOcr'); btn.disabled=true; btn.textContent='⏳ OCR en cours...';
+  log('⏳ Envoi à POST /ocr...');
+  const fd = new FormData(); fd.append('file', lastFile);
+  try{
+    const r = await fetch('/ocr', {method:'POST', body: fd});
+    const j = await r.json();
+    if(!r.ok) throw new Error(JSON.stringify(j));
+    log('✅ OCR OK - ' + j.champs.puissance_cv + ' - ' + j.champs.marque);
+    showFields(j.champs);
+    showPrices(j.prix_9_formules);
+    document.getElementById('score').textContent = j.champs.score_remplissage || '6/7';
+    document.getElementById('score').style.display='inline-block';
+    btn.textContent='✅ OCR Terminé';
+  }catch(e){ log('❌ Erreur OCR: ' + e.message); btn.disabled=false; btn.textContent='1️⃣ Réessayer OCR'; }
+}
+
+function showFields(champs){
+  const div=document.getElementById('fields');
+  div.innerHTML='';
+  const rows = [
+    ['Immatriculation', champs.immatriculation || '—'],
+    ['Marque', champs.marque || '—'],
+    ['Modèle', champs.modele || '—'],
+    ['Puissance', champs.puissance_cv || '—'],
+    ['Énergie', champs.energie || '—'],
+    ['Cylindrée', champs.cylindree || '—'],
+    ['Châssis / VIN', champs.chassis_vin || '—'],
+    ['Date 1ère mise', champs.date_premiere_mise || '—'],
+    ['Centre SSDT', champs.centre_ssdt || '—'],
+    ['Poids', champs.poids || '—'],
+  ];
+  rows.forEach(([k,v])=>{
+    const d=document.createElement('div'); d.className='field';
+    d.innerHTML=`<b>${k}</b><span>${v}</span>`;
+    div.appendChild(d);
+  });
+}
+
+function showPrices(prices){
+  const div=document.getElementById('prices'); div.innerHTML='';
+  Object.entries(prices).forEach(([nom,prix])=>{
+    const el=document.createElement('div'); el.className='price';
+    const isRec = nom.includes('Tierce') || nom.includes('Tous Accidents');
+    el.innerHTML=`<div><b>${nom} ${isRec?'<span class="badge b-green">Recommandée</span>':''}</b><br><span>${Math.round(prix/12).toLocaleString()} FCFA/mois</span></div><div class="p">${prix.toLocaleString()} FCFA</div>`;
+    el.onclick=()=>{
+      document.querySelectorAll('.price').forEach(p=>p.classList.remove('sel'));
+      el.classList.add('sel');
+      selectedFormule = nom;
+      document.getElementById('btnContract').disabled=false;
+      document.getElementById('btnContract').textContent='2️⃣ Générer Contrat PDF — ' + nom.split('.')[0] + ' (' + prix.toLocaleString() + ' FCFA)';
+      log('✅ Formule choisie: ' + nom + ' — ' + prix.toLocaleString() + ' FCFA');
+    };
+    div.appendChild(el);
+  });
+  // Auto-select Tierce
+  const tierce = Array.from(div.children).find(c=>c.textContent.includes('Tierce'));
+  if(tierce) tierce.click();
+}
+
+async function doContract(){
+  if(!lastFile || !selectedFormule) return;
+  const btn=document.getElementById('btnContract'); btn.disabled=true; btn.textContent='⏳ Génération PDF...';
+  log('⏳ Génération contrat PDF...');
+  const fd = new FormData();
+  fd.append('file', lastFile);
+  fd.append('formule', selectedFormule);
+  fd.append('nom', document.getElementById('nom').value || 'WANDJI DENIS LEDOUX');
+  fd.append('ville', document.getElementById('ville').value || 'Yaounde');
+  try{
+    const r = await fetch('/contract', {method:'POST', body: fd});
+    if(!r.ok){
+      const j = await r.json(); throw new Error(j.error || 'Erreur');
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=r.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g,'') || 'Contrat_AGC.pdf'; a.click();
+    log('✅ PDF généré et téléchargé: ' + a.download);
+    document.getElementById('result').innerHTML='✅ <b>Contrat téléchargé!</b> Vérifie tes téléchargements.<br><span style="color:#16a34a">Ouvre-le pour voir l’en-tête AGC bleu, le QR code et la signature.</span>';
+    btn.textContent='✅ PDF Généré — Télécharger à nouveau';
+    btn.disabled=false;
+  }catch(e){ log('❌ Erreur contrat: ' + e.message); btn.disabled=false; btn.textContent='2️⃣ Réessayer PDF'; }
+}
+</script>
+</body>
+</html>
